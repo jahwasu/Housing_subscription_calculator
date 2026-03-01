@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>청약 가능성 계산기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #3b82f6;
+    --accent2: #10b981;
+    --accent3: #f59e0b;
+    --danger: #ef4444;
+    --purple: #8b5cf6;
+    --card-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    padding: 48px 24px 36px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(ellipse at 30% 40%, rgba(59,130,246,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 70% 60%, rgba(16,185,129,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(59,130,246,0.15);
+    border: 1px solid rgba(59,130,246,0.4);
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: clamp(24px, 5vw, 40px);
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 0%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header p { color: #94a3b8; font-size: 14px; margin-top: 8px; }
+
+  /* Layout */
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  /* Section */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+  .section:hover { border-color: rgba(59,130,246,0.3); }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+  }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 600px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* Form Controls */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  input[type="number"], select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    padding: 12px 14px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+  }
+  select option { background: #1c2128; }
+
+  /* Radio Toggle */
+  .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+  .toggle-btn.active {
+    background: rgba(59,130,246,0.15);
+    border-color: var(--accent);
+    color: #93c5fd;
+    font-weight: 700;
+  }
+  .toggle-btn.active-green {
+    background: rgba(16,185,129,0.15);
+    border-color: var(--accent2);
+    color: #6ee7b7;
+    font-weight: 700;
+  }
+
+  /* Calculate Button */
+  .calc-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: -0.3px;
+    transition: all 0.2s;
+    margin-top: 8px;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+  }
+  .calc-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(37,99,235,0.5); }
+  .calc-btn:active { transform: translateY(0); }
+
+  /* Result Area */
+  #result { display: none; }
+
+  /* Score Card */
+  .score-hero {
+    background: linear-gradient(135deg, #1e3a5f, #1a2f4a);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 20px;
+    padding: 36px;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .score-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.15), transparent 70%);
+  }
+  .score-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #64748b; margin-bottom: 8px; }
+  .score-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 80px;
+    font-weight: 500;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff, #93c5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .score-max { font-family: 'DM Mono', monospace; font-size: 20px; color: #4b5563; margin-top: 4px; }
+  .score-grade {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  /* Score Breakdown */
+  .score-bar-item { margin-bottom: 16px; }
+  .score-bar-header { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .score-bar-name { color: var(--text); font-weight: 500; }
+  .score-bar-val { font-family: 'DM Mono', monospace; color: var(--accent); font-weight: 700; }
+  .bar-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Strategy Cards */
+  .strategy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 600px) { .strategy-grid { grid-template-columns: 1fr; } }
+  .strategy-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .strategy-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .strategy-card.possible::before { background: linear-gradient(90deg, #10b981, #34d399); }
+  .strategy-card.possible { border-color: rgba(16,185,129,0.2); }
+  .strategy-card.limited::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .strategy-card.limited { border-color: rgba(245,158,11,0.2); }
+  .strategy-card.impossible::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .strategy-card.impossible { border-color: rgba(239,68,68,0.2); }
+
+  .strategy-status {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .strategy-status.possible { color: #10b981; }
+  .strategy-status.limited { color: #f59e0b; }
+  .strategy-status.impossible { color: #ef4444; }
+  .strategy-name { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .strategy-desc { font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2));
+    opacity: 0.4;
+  }
+  .timeline-item { position: relative; margin-bottom: 24px; }
+  .timeline-dot {
+    position: absolute;
+    left: -24px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+  }
+  .timeline-dot.now { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+  .timeline-dot.soon { background: var(--accent3); }
+  .timeline-dot.future { background: var(--accent2); }
+  .timeline-dot.far { background: #4b5563; }
+  .timeline-when { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+  .timeline-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .timeline-detail { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+  /* Info Box */
+  .info-box {
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-top: 12px;
+  }
+  .info-box.blue { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #93c5fd; }
+  .info-box.amber { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: #fcd34d; }
+  .info-box.green { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #6ee7b7; }
+  .info-box.red { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5; }
+
+  .hint { font-size: 11px; color: #4b5563; margin-top: 4px; }
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* Score future table */
+  .future-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .future-table th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+  }
+  .future-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .future-table tr:last-child td { border-bottom: none; }
+  .future-table .highlight-row td { background: rgba(59,130,246,0.07); }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tag-blue { background: rgba(59,130,246,0.2); color: #93c5fd; }
+  .tag-green { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+  .tag-amber { background: rgba(245,158,11,0.2); color: #fcd34d; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">🏠 청약 분석 도구 2025</div>
+  <h1>내 청약 가능성 계산기</h1>
+  <p>소득 · 무주택 기간 · 통장 · 결혼 · 자녀 정보를 입력하면<br>현실적인 청약 전략과 가점 로드맵을 알려드립니다</p>
+</div>
+
+<div class="container">
+
+  <!-- 입력: 기본 정보 -->
+  <div class="section">
+    <div class="section-title">📋 기본 정보</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>나이</label>
+        <input type="number" id="age" value="28" min="19" max="70">
+      </div>
+      <div class="field">
+        <label>연소득 (만원)</label>
+        <input type="number" id="income" value="7000" min="0">
+        <span class="hint">세전 기준 / 배우자 있으면 본인 소득만 입력</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입력: 주택 및 청약통장 -->
+  <div class="section">
+    <div class="section-title">🏠 주택 & 청약통장</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>무주택 기간</label>
+        <select id="housingless">
+          <option value="0">무주택 1년 미만</option>
+          <option value="2">1년 이상</option>
+          <option value="4">2년 이상</option>
+          <option value="6">3년 이상</option>
+          <option value="8">4년 이상</option>
+          <option value="10">5년 이상</option>
+          <option value="12">6년 이상</option>
+          <option value="14">7년 이상</option>
+          <option value="16">8년 이상</option>
+          <option value="18">9년 이상</option>
+          <option value="20">10년 이상</option>
+          <option value="22">11년 이상</option>
+          <option value="24">12년 이상</option>
+          <option value="26">13년 이상</option>
+          <option value="28">14년 이상</option>
+          <option value="30">15년 이상</option>
+          <option value="32">15년 이상 (만점)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>청약통장 가입 (개월)</label>
+        <input type="number" id="bankMonth" value="6" min="0" max="300">
+        <span class="hint">오늘 기준 가입 개월 수</span>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="field">
+      <label>현재 주택 소유 여부</label>
+      <div class="toggle-group" id="ownedGroup">
+        <button class="toggle-btn active" onclick="setToggle('ownedGroup',this,'N')">무주택 ✓</button>
+        <button class="toggle-btn" onclick="setToggle('ownedGroup',this,'Y')">주택 보유</button>
+      </div>
+    </div>
+    <div style="margin-top:16px" class="field">
+      <label>과거 주택 소유 이력</label>
+      <div class="toggle-group" id="pastOwnedGroup">
+        <button class="toggle-btn active" onclick="setToggle('pastOwnedGroup',this,'N')">없음 ✓</button>
+        <button class="toggle-btn" onclick="setToggle('pastOwnedGroup',this,'Y')">있음</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입력: 결혼 & 자녀 -->
+  <div class="section">
+    <div class="section-title">👨‍👩‍👧 결혼 & 가족</div>
+    <div class="field">
+      <label>결혼 여부</label>
+      <div class="toggle-group" id="marriedGroup">
+        <button class="toggle-btn active" onclick="setToggle('marriedGroup',this,'N'); toggleMarried(false)">미혼</button>
+        <button class="toggle-btn" onclick="setToggle('marriedGroup',this,'Y'); toggleMarried(true)">기혼</button>
+      </div>
+    </div>
+
+    <div id="marriedSection" style="display:none; margin-top:16px">
+      <div class="grid-2">
+        <div class="field">
+          <label>혼인 기간 (년)</label>
+          <input type="number" id="marriedYear" value="1" min="0" max="30">
+        </div>
+        <div class="field">
+          <label>배우자 연소득 (만원)</label>
+          <input type="number" id="spouseIncome" value="0" min="0">
+          <span class="hint">0이면 외벌이</span>
+        </div>
+      </div>
+      <div style="margin-top:16px" class="field">
+        <label>자녀 수</label>
+        <div class="toggle-group" id="childGroup">
+          <button class="toggle-btn active" onclick="setToggle('childGroup',this,'0')">없음</button>
+          <button class="toggle-btn" onclick="setToggle('childGroup',this,'1')">1명</button>
+          <button class="toggle-btn" onclick="setToggle('childGroup',this,'2')">2명</button>
+          <button class="toggle-btn" onclick="setToggle('childGroup',this,'3')">3명 이상</button>
+        </div>
+      </div>
+      <div style="margin-top:16px" class="field">
+        <label>막내 자녀 나이 (개월)</label>
+        <input type="number" id="youngChildMonth" value="0" min="0">
+        <span class="hint">신생아 특공은 24개월 이내</span>
+      </div>
+      <div style="margin-top:16px" class="field">
+        <label>배우자 청약통장 가입 (개월)</label>
+        <input type="number" id="spouseBankMonth" value="0" min="0">
+        <span class="hint">일반공급 가점 합산 최대 3점</span>
+      </div>
+    </div>
+
+    <div id="singleSection" style="margin-top:16px">
+      <div class="field">
+        <label>부양가족 수 (본인 제외)</label>
+        <div class="toggle-group" id="dependentGroup">
+          <button class="toggle-btn active" onclick="setToggle('dependentGroup',this,'0')">0명</button>
+          <button class="toggle-btn" onclick="setToggle('dependentGroup',this,'1')">1명</button>
+          <button class="toggle-btn" onclick="setToggle('dependentGroup',this,'2')">2명</button>
+          <button class="toggle-btn" onclick="setToggle('dependentGroup',this,'3')">3명 이상</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 입력: 자산 -->
+  <div class="section">
+    <div class="section-title">💰 자산 현황</div>
+    <div class="grid-2">
+      <div class="field">
+        <label>부동산 자산 (만원)</label>
+        <input type="number" id="realEstate" value="0" min="0">
+        <span class="hint">기준: 3억 3,100만원 이하</span>
+      </div>
+      <div class="field">
+        <label>차량 가액 (만원)</label>
+        <input type="number" id="carValue" value="0" min="0">
+        <span class="hint">기준: 3,700만원 이하</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 계산 버튼 -->
+  <button class="calc-btn" onclick="calculate()">🔍 내 청약 전략 분석하기</button>
+
+  <!-- 결과 -->
+  <div id="result">
+    <div style="height:28px"></div>
+
+    <!-- 가점 히어로 -->
+    <div class="score-hero">
+      <div class="score-label">현재 민영주택 일반공급 가점</div>
+      <div class="score-number" id="scoreNum">0</div>
+      <div class="score-max">/ 84점</div>
+      <div class="score-grade" id="scoreGrade"></div>
+    </div>
+
+    <!-- 가점 세부 -->
+    <div class="section">
+      <div class="section-title">📊 가점 세부 내역</div>
+      <div id="scoreBreakdown"></div>
+      <div class="info-box blue" style="margin-top:16px" id="scoreComment"></div>
+    </div>
+
+    <!-- 가능한 청약 유형 -->
+    <div class="section">
+      <div class="section-title">✅ 청약 가능 여부 판정</div>
+      <div class="strategy-grid" id="strategyCards"></div>
+    </div>
+
+    <!-- 시간대별 가점 로드맵 -->
+    <div class="section">
+      <div class="section-title">📈 가점 상승 로드맵</div>
+      <div style="overflow-x:auto">
+        <table class="future-table" id="futureTable"></table>
+      </div>
+    </div>
+
+    <!-- 단계별 전략 타임라인 -->
+    <div class="section">
+      <div class="section-title">🗺️ 단계별 실행 전략</div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <!-- 핵심 주의사항 -->
+    <div class="section">
+      <div class="section-title">⚠️ 핵심 주의사항</div>
+      <div id="warnings"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── Toggle State ───────────────────────────────────────────────
+const toggleState = {
+  ownedGroup: 'N',
+  pastOwnedGroup: 'N',
+  marriedGroup: 'N',
+  childGroup: '0',
+  dependentGroup: '0'
+};
+
+function setToggle(group, el, val) {
+  toggleState[group] = val;
+  document.querySelectorAll(`#${group} .toggle-btn`).forEach(b => {
+    b.classList.remove('active', 'active-green');
+  });
+  el.classList.add('active');
+}
+
+function toggleMarried(show) {
+  document.getElementById('marriedSection').style.display = show ? 'block' : 'none';
+  document.getElementById('singleSection').style.display = show ? 'none' : 'block';
+}
+
+// ─── 2025 Income Standards (도시근로자 가구당 월평균소득) ─────────────
+const MONTHLY_AVG = { 1: 3330000, 2: 4810000, 3: 6000000, 4: 7000000 };
+
+function getIncomeLimit(members, pct) {
+  const base = MONTHLY_AVG[Math.min(members, 4)] || MONTHLY_AVG[4];
+  return base * pct / 100;
+}
+
+// ─── Score Calculation ────────────────────────────────────────────
+function calcScore(data) {
+  // 1. 무주택 기간 (최대 32점)
+  const housingScore = parseInt(data.housingless);
+
+  // 2. 부양가족 수 (최대 35점)
+  // 배우자 1명 + 자녀 수 * 5점 + 직계존속
+  let dependentScore = 0;
+  if (data.married === 'Y') {
+    dependentScore = 5; // 배우자
+    const children = parseInt(data.children);
+    dependentScore += children * 5;
+  } else {
+    const dep = parseInt(data.dependent);
+    dependentScore = dep * 5;
+  }
+  dependentScore = Math.min(dependentScore, 35);
+
+  // 3. 청약통장 가입기간 (최대 17점)
+  const months = parseInt(data.bankMonth);
+  let bankScore = 0;
+  if (months >= 6) bankScore = 1;
+  if (months >= 12) bankScore = 2;
+  if (months >= 24) bankScore = 3;
+  if (months >= 36) bankScore = 4;
+  if (months >= 48) bankScore = 5;
+  if (months >= 60) bankScore = 6;
+  if (months >= 72) bankScore = 7;
+  if (months >= 84) bankScore = 8;
+  if (months >= 96) bankScore = 9;
+  if (months >= 108) bankScore = 10;
+  if (months >= 120) bankScore = 11;
+  if (months >= 132) bankScore = 12;
+  if (months >= 144) bankScore = 13;
+  if (months >= 156) bankScore = 14;
+  if (months >= 168) bankScore = 15;
+  // 배우자 통장 합산 최대 3점
+  const spouseMonths = parseInt(data.spouseBankMonth || 0);
+  let spouseBankScore = 0;
+  if (spouseMonths >= 6) spouseBankScore = 1;
+  if (spouseMonths >= 12) spouseBankScore = 2;
+  if (spouseMonths >= 24) spouseBankScore = 3;
+  spouseBankScore = Math.min(spouseBankScore, 3);
+
+  const totalBankScore = Math.min(bankScore + spouseBankScore, 17);
+
+  return {
+    housing: housingScore,
+    dependent: dependentScore,
+    bank: totalBankScore,
+    spouseBank: spouseBankScore,
+    total: housingScore + dependentScore + totalBankScore,
+    bankRaw: bankScore,
+    months
+  };
+}
+
+// ─── Future Score Projection ─────────────────────────────────────
+function calcFutureScore(data, addYears) {
+  const futureMonths = parseInt(data.bankMonth) + addYears * 12;
+  const futureHousingScore = Math.min(parseInt(data.housingless) + addYears * 2, 32);
+
+  let bankScore = 0;
+  if (futureMonths >= 6) bankScore = 1;
+  if (futureMonths >= 12) bankScore = 2;
+  if (futureMonths >= 24) bankScore = 3;
+  if (futureMonths >= 36) bankScore = 4;
+  if (futureMonths >= 48) bankScore = 5;
+  if (futureMonths >= 60) bankScore = 6;
+  if (futureMonths >= 72) bankScore = 7;
+  if (futureMonths >= 84) bankScore = 8;
+  if (futureMonths >= 96) bankScore = 9;
+  if (futureMonths >= 108) bankScore = 10;
+  if (futureMonths >= 120) bankScore = 11;
+  if (futureMonths >= 132) bankScore = 12;
+  if (futureMonths >= 144) bankScore = 13;
+  if (futureMonths >= 156) bankScore = 14;
+  if (futureMonths >= 168) bankScore = 15;
+  bankScore = Math.min(bankScore + parseInt(data.spouseBankScore || 0), 17);
+
+  return futureHousingScore + parseInt(data.dependentScore) + bankScore;
+}
+
+// ─── Main Calculate ───────────────────────────────────────────────
+function calculate() {
+  const data = {
+    age: parseInt(document.getElementById('age').value),
+    income: parseInt(document.getElementById('income').value) * 10000,
+    housingless: document.getElementById('housingless').value,
+    bankMonth: parseInt(document.getElementById('bankMonth').value),
+    owned: toggleState.ownedGroup,
+    pastOwned: toggleState.pastOwnedGroup,
+    married: toggleState.marriedGroup,
+    children: toggleState.childGroup,
+    dependent: toggleState.dependentGroup,
+    marriedYear: parseInt(document.getElementById('marriedYear').value || 0),
+    spouseIncome: parseInt(document.getElementById('spouseIncome').value || 0) * 10000,
+    youngChildMonth: parseInt(document.getElementById('youngChildMonth').value || 99),
+    spouseBankMonth: parseInt(document.getElementById('spouseBankMonth').value || 0),
+    realEstate: parseInt(document.getElementById('realEstate').value || 0) * 10000,
+    carValue: parseInt(document.getElementById('carValue').value || 0) * 10000,
+  };
+
+  const score = calcScore(data);
+  data.dependentScore = score.dependent;
+  data.spouseBankScore = score.spouseBank;
+
+  const monthlyIncome = data.income / 12;
+  const spouseMonthly = data.spouseIncome / 12;
+  const totalMonthly = monthlyIncome + spouseMonthly;
+  const members = data.married === 'Y' ? 2 + parseInt(data.children) : 1;
+  const assetOK = data.realEstate <= 331000000 && data.carValue <= 37000000;
+
+  // ─── 소득 기준 판정 ───
+  const limit100 = getIncomeLimit(members, 100);
+  const limit130 = getIncomeLimit(members, 130);
+  const limit140 = getIncomeLimit(members, 140);
+  const limit160 = getIncomeLimit(members, 160);
+  const limit200 = getIncomeLimit(members, 200);
+
+  const checkIncome = (pct) => {
+    const ref = data.married === 'Y' && data.spouseIncome > 0 ? totalMonthly : monthlyIncome;
+    return ref <= getIncomeLimit(members, pct);
+  };
+
+  // 신청 자격 판정
+  const isUnmarried = data.married === 'N';
+  const isMarried = data.married === 'Y';
+  const withinMarriage7 = data.marriedYear <= 7;
+  const hasChild = parseInt(data.children) > 0;
+  const hasNewborn = data.youngChildMonth <= 24;
+  const notOwned = data.owned === 'N';
+  const noPastOwned = data.pastOwned === 'N';
+  const age = data.age;
+
+  // ─── 청약 유형 판정 ───────────────────────────────────────────
+  const strategies = [];
+
+  // 1. 민영 생애최초
+  const lifeFirst_possible = noPastOwned && notOwned && checkIncome(160) && assetOK;
+  const lifeFirst_lottery = noPastOwned && notOwned && checkIncome(200) && assetOK;
+  let lifeFirstStatus, lifeFirstDesc;
+  if (lifeFirst_possible) {
+    lifeFirstStatus = 'possible';
+    lifeFirstDesc = `소득 기준 충족. 우선공급(추첨 50%) 또는 잔여공급 신청 가능. 과거 주택 미소유 + 무주택 유지 필수.`;
+  } else if (lifeFirst_lottery) {
+    lifeFirstStatus = 'limited';
+    lifeFirstDesc = `소득이 160% 초과이나 200% 이하 → 추첨제만 가능. 자산 기준(부동산 3.31억, 차량 3,700만원)도 충족 필요.`;
+  } else if (!assetOK) {
+    lifeFirstStatus = 'limited';
+    lifeFirstDesc = `자산 기준 초과. 부동산 3.31억 이하, 차량 3,700만원 이하 조건 확인 필요.`;
+  } else {
+    lifeFirstStatus = 'impossible';
+    lifeFirstDesc = `소득 월 ${Math.round(getIncomeLimit(members,200)/10000)}만원 초과 또는 과거 주택 소유 이력으로 신청 불가.`;
+  }
+  strategies.push({ name: '🏢 민영 생애최초 특공', status: lifeFirstStatus, desc: lifeFirstDesc });
+
+  // 2. 신혼부부 특공 (민영)
+  if (isMarried && withinMarriage7) {
+    const honey_possible = notOwned && checkIncome(160) && assetOK;
+    const honey_lottery = notOwned && checkIncome(200) && assetOK;
+    let honeyStatus, honeyDesc;
+    if (honey_possible) {
+      honeyStatus = 'possible';
+      honeyDesc = `혼인 ${data.marriedYear}년. 소득 기준 충족. 우선공급 or 잔여공급 신청 가능. 잔여 ${7 - data.marriedYear}년 기회.`;
+    } else if (honey_lottery) {
+      honeyStatus = 'limited';
+      honeyDesc = `맞벌이 소득 초과 → 추첨제 도전 가능. 잔여 ${7 - data.marriedYear}년의 기회가 있습니다.`;
+    } else {
+      honeyStatus = 'impossible';
+      honeyDesc = `소득 기준 초과. 맞벌이 200% 이하 기준을 확인하세요.`;
+    }
+    strategies.push({ name: '💑 신혼부부 특공 (민영)', status: honeyStatus, desc: honeyDesc });
+  } else if (isMarried && !withinMarriage7) {
+    strategies.push({ name: '💑 신혼부부 특공', status: 'impossible', desc: `혼인 ${data.marriedYear}년 경과 → 7년 초과로 신청 불가.` });
+  } else {
+    strategies.push({ name: '💑 신혼부부 특공', status: 'impossible', desc: `미혼. 결혼 후 혼인신고 즉시 신청 자격 발생합니다.` });
+  }
+
+  // 3. 신생아 특공
+  if (hasNewborn && isMarried) {
+    const newborn_possible = notOwned && checkIncome(160) && assetOK;
+    strategies.push({
+      name: '👶 신생아 특공',
+      status: newborn_possible ? 'possible' : 'limited',
+      desc: newborn_possible
+        ? `출산 ${data.youngChildMonth}개월. 공고일 기준 24개월 이내 출산 조건 충족. 신혼 특공과 별도로 1회 추가 기회.`
+        : `출산 조건 충족이나 소득 기준 재확인 필요. 공공분양 신생아 특공은 소득 기준 별도 적용.`
+    });
+  } else if (hasChild && data.youngChildMonth > 24) {
+    strategies.push({ name: '👶 신생아 특공', status: 'impossible', desc: `막내 자녀가 24개월 초과. 신생아 특공 요건 미충족.` });
+  } else {
+    strategies.push({ name: '👶 신생아 특공', status: 'impossible', desc: `자녀 출산 시 자동으로 기회 발생. 출산 후 24개월 이내 공고 물량 노릴 것.` });
+  }
+
+  // 4. 뉴홈 청년 특공 (공공분양)
+  const youth_income_ok = checkIncome(140);
+  const youth_age_ok = age >= 19 && age <= 39;
+  const youth_single = isUnmarried;
+  if (youth_age_ok && youth_single && youth_income_ok && notOwned) {
+    strategies.push({ name: '🌟 뉴홈 청년 특공', status: 'possible', desc: `나이·미혼·소득 기준 충족. 공공분양 물량. 청약통장 6개월·6회 이상 납입 확인.` });
+  } else {
+    let reason = [];
+    if (!youth_age_ok) reason.push('나이 제한 (19~39세)');
+    if (!youth_single) reason.push('기혼자 제외');
+    if (!youth_income_ok) reason.push(`소득 초과 (140% 기준 월 ${Math.round(getIncomeLimit(1,140)/10000)}만원)`);
+    if (!notOwned) reason.push('주택 보유');
+    strategies.push({ name: '🌟 뉴홈 청년 특공 (공공)', status: 'impossible', desc: `미충족: ${reason.join(', ')}` });
+  }
+
+  // 5. 일반공급 가점제
+  const generalStatus = score.total >= 50 ? 'possible' : score.total >= 30 ? 'limited' : 'impossible';
+  strategies.push({
+    name: '📋 민영 일반공급 (가점제)',
+    status: generalStatus,
+    desc: `현재 ${score.total}점. 서울 인기 단지 평균 60~70점 필요. ${score.total < 40 ? '현재는 경쟁력 낮음. 장기 적립 전략 병행.' : score.total < 60 ? '중간 경쟁력. 외곽 지역 도전 가능.' : '경쟁력 있음. 도전해볼 만합니다.'}`
+  });
+
+  // ─── Render Score ─────────────────────────────────────────────
+  document.getElementById('scoreNum').textContent = score.total;
+  const grade = score.total >= 70 ? { text: '상위 10%', color: '#10b981', bg: 'rgba(16,185,129,0.2)' }
+    : score.total >= 55 ? { text: '경쟁 가능', color: '#3b82f6', bg: 'rgba(59,130,246,0.2)' }
+    : score.total >= 35 ? { text: '보통', color: '#f59e0b', bg: 'rgba(245,158,11,0.2)' }
+    : { text: '낮음 · 특공 집중', color: '#ef4444', bg: 'rgba(239,68,68,0.2)' };
+
+  const gradeEl = document.getElementById('scoreGrade');
+  gradeEl.textContent = grade.text;
+  gradeEl.style.background = grade.bg;
+  gradeEl.style.color = grade.color;
+
+  // Score Breakdown
+  const items = [
+    { name: '무주택 기간', score: score.housing, max: 32, color: '#3b82f6' },
+    { name: '부양가족 수', score: score.dependent, max: 35, color: '#8b5cf6' },
+    { name: '청약통장 가입기간', score: score.bank, max: 17, color: '#10b981' },
+  ];
+  document.getElementById('scoreBreakdown').innerHTML = items.map(i => `
+    <div class="score-bar-item">
+      <div class="score-bar-header">
+        <span class="score-bar-name">${i.name}</span>
+        <span class="score-bar-val">${i.score} / ${i.max}점</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(i.score/i.max)*100}%; background: linear-gradient(90deg, ${i.color}88, ${i.color})"></div>
+      </div>
+    </div>
+  `).join('');
+
+  // Score Comment
+  const commLines = [];
+  if (score.housing < 10) commLines.push(`📍 무주택 기간: ${score.housing}점 → 매년 2점씩 증가합니다.`);
+  if (score.dependent < 10) commLines.push(`👨‍👩‍👧 부양가족: ${score.dependent}점 → 결혼 +5점, 자녀 1명당 +5점 추가됩니다.`);
+  if (score.bank < 10) commLines.push(`🏦 청약통장: ${score.bank}점 → 2년마다 1점씩, 최대 15점까지 증가합니다.`);
+  if (data.married === 'Y' && score.spouseBank > 0) commLines.push(`💳 배우자 통장 합산: +${score.spouseBank}점 적용됨`);
+  document.getElementById('scoreComment').innerHTML = commLines.join('<br>') || '가점이 고르게 쌓이고 있습니다. 계속 유지하세요!';
+
+  // Strategy Cards
+  document.getElementById('strategyCards').innerHTML = strategies.map(s => `
+    <div class="strategy-card ${s.status}">
+      <div class="strategy-status ${s.status}">${s.status === 'possible' ? '✅ 신청 가능' : s.status === 'limited' ? '⚡ 조건부 가능' : '❌ 현재 불가'}</div>
+      <div class="strategy-name">${s.name}</div>
+      <div class="strategy-desc">${s.desc}</div>
+    </div>
+  `).join('');
+
+  // ─── Future Score Table ───────────────────────────────────────
+  const years = [0, 1, 2, 3, 5, 7, 10];
+  const tableRows = years.map(y => {
+    const futureScore = calcFutureScore(data, y);
+    const futureAge = data.age + y;
+    const isNow = y === 0;
+    const futureHousing = Math.min(parseInt(data.housingless) + y * 2, 32);
+    const futureMonths = data.bankMonth + y * 12;
+    let futureBankScore = 0;
+    if (futureMonths >= 6) futureBankScore = 1;
+    if (futureMonths >= 12) futureBankScore = 2;
+    if (futureMonths >= 24) futureBankScore = 3;
+    if (futureMonths >= 36) futureBankScore = 4;
+    if (futureMonths >= 48) futureBankScore = 5;
+    if (futureMonths >= 60) futureBankScore = 6;
+    if (futureMonths >= 72) futureBankScore = 7;
+    if (futureMonths >= 84) futureBankScore = 8;
+    if (futureMonths >= 96) futureBankScore = 9;
+    if (futureMonths >= 108) futureBankScore = 10;
+    if (futureMonths >= 120) futureBankScore = 11;
+    if (futureMonths >= 132) futureBankScore = 12;
+    if (futureMonths >= 144) futureBankScore = 13;
+    if (futureMonths >= 156) futureBankScore = 14;
+    if (futureMonths >= 168) futureBankScore = 15;
+    futureBankScore = Math.min(futureBankScore + score.spouseBank, 17);
+    const tag = futureScore >= 60 ? '<span class="tag tag-green">인기단지 도전</span>'
+      : futureScore >= 45 ? '<span class="tag tag-blue">외곽 경쟁</span>'
+      : '<span class="tag tag-amber">특공 집중</span>';
+    return `<tr class="${isNow ? 'highlight-row' : ''}">
+      <td><strong>${y === 0 ? '지금' : `+${y}년`}</strong><br><span style="color:#4b5563;font-size:11px">(${futureAge}세)</span></td>
+      <td style="font-family:'DM Mono',monospace; font-size:18px; color:${futureScore >= 60 ? '#10b981' : futureScore >= 45 ? '#3b82f6' : '#f59e0b'}"><strong>${futureScore}</strong><span style="color:#4b5563;font-size:12px">/84</span></td>
+      <td>${futureHousing}점</td>
+      <td>${score.dependent}점</td>
+      <td>${futureBankScore}점</td>
+      <td>${tag}</td>
+    </tr>`;
+  });
+
+  document.getElementById('futureTable').innerHTML = `
+    <thead>
+      <tr>
+        <th>시점</th><th>총점</th><th>무주택</th><th>부양가족</th><th>통장</th><th>경쟁력</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows.join('')}</tbody>
+  `;
+
+  // ─── Timeline ─────────────────────────────────────────────────
+  const tl = [];
+  tl.push({
+    dot: 'now', when: '지금 당장',
+    title: '청약통장 납입 전략 확정',
+    detail: `공공분양은 소득 기준 초과 가능성 → 월 ${data.income > 50000000 ? '10만원' : '25만원'} 납입 권장. 민영주택 예치금 ${monthlyIncome > 3000000 ? '600만원(전용 85㎡ 초과 포함)' : '300만원'}까지 목표.`
+  });
+
+  if (lifeFirstStatus !== 'impossible') {
+    tl.push({
+      dot: 'soon', when: '수시 도전 가능',
+      title: '민영주택 생애최초 특공 추첨제',
+      detail: `추첨제라 가점 무관. 공고 뜰 때마다 신청. 청약홈 알림 설정 필수.`
+    });
+  }
+
+  if (isUnmarried) {
+    tl.push({
+      dot: 'soon', when: '결혼 후 즉시',
+      title: '신혼부부 특공 신청 (7년 카운트 시작)',
+      detail: `혼인신고 당일부터 자격 발생. 배우자도 청약통장 보유 여부 확인. 맞벌이 소득 합산 기준 200%까지 추첨 가능.`
+    });
+  }
+
+  if (!hasNewborn && isMarried) {
+    tl.push({
+      dot: 'future', when: '출산 직후',
+      title: '신생아 특공 추가 기회',
+      detail: `출산 후 24개월 이내 공고 나오는 물량 신청. 신혼부부 특공 사용 후에도 별도 1회 기회.`
+    });
+  }
+
+  const year3Score = calcFutureScore(data, 3);
+  tl.push({
+    dot: 'future', when: `+3년 후 (${data.age + 3}세)`,
+    title: `예상 가점 ${year3Score}점 달성`,
+    detail: `무주택 기간 +6점, 통장 가입기간 자동 증가. 외곽 지역 일반공급 경쟁력 향상.`
+  });
+
+  const year7Score = calcFutureScore(data, 7);
+  tl.push({
+    dot: 'far', when: `+7년 후 (${data.age + 7}세)`,
+    title: `예상 가점 ${year7Score}점`,
+    detail: `결혼 후 부양가족 점수까지 합산되면 50점 이상 기대. 수도권 일반공급도 도전 가능한 수준.`
+  });
+
+  document.getElementById('timeline').innerHTML = tl.map(t => `
+    <div class="timeline-item">
+      <div class="timeline-dot ${t.dot}"></div>
+      <div class="timeline-when">${t.when}</div>
+      <div class="timeline-title">${t.title}</div>
+      <div class="timeline-detail">${t.detail}</div>
+    </div>
+  `).join('');
+
+  // ─── Warnings ─────────────────────────────────────────────────
+  const warns = [];
+  if (!assetOK) {
+    warns.push({ type: 'red', text: '⚠️ 자산 기준 초과: 부동산 또는 차량 가액이 기준을 초과합니다. 특별공급 신청 불가능합니다.' });
+  }
+  if (data.owned === 'Y') {
+    warns.push({ type: 'red', text: '⚠️ 현재 주택 보유 중: 특별공급 대부분 무주택자 요건. 기존 주택 처분 후 일정 기간 경과 필요.' });
+  }
+  if (data.pastOwned === 'Y') {
+    warns.push({ type: 'amber', text: '⚠️ 과거 주택 소유 이력: 생애최초 특공 신청 불가. 신혼부부·청년 특공은 가능할 수 있으나 공고문 확인 필수.' });
+  }
+  warns.push({ type: 'blue', text: '📌 특별공급 당첨은 평생 1회 (단, 신혼+신생아 출산 시 최대 2회 가능). 당첨 후 포기 시 청약통장 효력 상실.' });
+  warns.push({ type: 'green', text: '✅ 소득 기준은 매년 변경됩니다. 청약홈(applyhome.co.kr) 공고문에서 최신 기준 반드시 확인하세요.' });
+
+  document.getElementById('warnings').innerHTML = warns.map(w => `
+    <div class="info-box ${w.type}" style="margin-bottom:10px">${w.text}</div>
+  `).join('');
+
+  // Show result
+  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
