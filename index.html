@@ -808,85 +808,63 @@ function calculate() {
   gradeEl.style.background = grade.bg;
   gradeEl.style.color = grade.color;
 
-  // Score Breakdown
-  const items = [
-    { name: '무주택 기간', score: score.housing, max: 32, color: '#3b82f6' },
-    { name: '부양가족 수', score: score.dependent, max: 35, color: '#8b5cf6' },
-    { name: '청약통장 가입기간', score: score.bank, max: 17, color: '#10b981' },
-  ];
-  document.getElementById('scoreBreakdown').innerHTML = items.map(i => `
-    <div class="score-bar-item">
-      <div class="score-bar-header">
-        <span class="score-bar-name">${i.name}</span>
-        <span class="score-bar-val">${i.score} / ${i.max}점</span>
+  // Score Breakdown - simplified 3-box layout
+  document.getElementById('scoreBreakdown').innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center;">
+      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">무주택 기간</div>
+        <div style="font-family:'DM Mono',monospace; font-size:28px; font-weight:700; color:#3b82f6;">${score.housing}</div>
+        <div style="font-size:11px; color:#4b5563;">/ 32점</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">매년 +2점</div>
       </div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${(i.score/i.max)*100}%; background: linear-gradient(90deg, ${i.color}88, ${i.color})"></div>
+      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">부양가족</div>
+        <div style="font-family:'DM Mono',monospace; font-size:28px; font-weight:700; color:#8b5cf6;">${score.dependent}</div>
+        <div style="font-size:11px; color:#4b5563;">/ 35점</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">결혼+5 / 자녀+5</div>
+      </div>
+      <div style="background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+        <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">청약통장</div>
+        <div style="font-family:'DM Mono',monospace; font-size:28px; font-weight:700; color:#10b981;">${score.bank}</div>
+        <div style="font-size:11px; color:#4b5563;">/ 17점</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:6px;">2년마다 +1점</div>
       </div>
     </div>
-  `).join('');
-
-  // Score Comment
-  const commLines = [];
-  if (score.housing < 10) commLines.push(`📍 무주택 기간: ${score.housing}점 → 매년 2점씩 증가합니다.`);
-  if (score.dependent < 10) commLines.push(`👨‍👩‍👧 부양가족: ${score.dependent}점 → 결혼 +5점, 자녀 1명당 +5점 추가됩니다.`);
-  if (score.bank < 10) commLines.push(`🏦 청약통장: ${score.bank}점 → 2년마다 1점씩, 최대 15점까지 증가합니다.`);
-  if (data.married === 'Y' && score.spouseBank > 0) commLines.push(`💳 배우자 통장 합산: +${score.spouseBank}점 적용됨`);
-  document.getElementById('scoreComment').innerHTML = commLines.join('<br>') || '가점이 고르게 쌓이고 있습니다. 계속 유지하세요!';
+  `;
+  document.getElementById('scoreComment').innerHTML = `현재 <strong style="color:var(--text)">${score.total}점</strong> · 서울 인기단지 평균 <strong style="color:#f59e0b">65점</strong> 필요 · ${score.total < 35 ? '⚡ 지금은 <strong style="color:#f59e0b">특별공급</strong>에 집중하세요' : score.total < 55 ? '📈 외곽·수도권 일반공급 도전 가능' : '✅ 경쟁력 있음 — 서울 외곽도 도전 가능'}`;
 
   // Strategy Cards
   document.getElementById('strategyCards').innerHTML = strategies.map(s => `
-    <div class="strategy-card ${s.status}">
-      <div class="strategy-status ${s.status}">${s.status === 'possible' ? '✅ 신청 가능' : s.status === 'limited' ? '⚡ 조건부 가능' : '❌ 현재 불가'}</div>
-      <div class="strategy-name">${s.name}</div>
-      <div class="strategy-desc">${s.desc}</div>
+    <div class="strategy-card ${s.status}" style="padding:16px;">
+      <div style="display:flex; align-items:flex-start; gap:10px;">
+        <span style="font-size:20px; line-height:1.4;">${s.status === 'possible' ? '✅' : s.status === 'limited' ? '⚡' : '❌'}</span>
+        <div>
+          <div style="font-size:14px; font-weight:700; color:var(--text);">${s.name}</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.5;">${s.desc}</div>
+        </div>
+      </div>
     </div>
   `).join('');
 
-  // ─── Future Score Table ───────────────────────────────────────
-  const years = [0, 1, 2, 3, 5, 7, 10];
+  // ─── Future Score Table (simplified) ────────────────────────
+  const years = [0, 3, 5, 7, 10];
   const tableRows = years.map(y => {
     const futureScore = calcFutureScore(data, y);
     const futureAge = data.age + y;
     const isNow = y === 0;
-    const futureHousing = Math.min(parseInt(data.housingless) + y * 2, 32);
-    const futureMonths = data.bankMonth + y * 12;
-    let futureBankScore = 0;
-    if (futureMonths >= 6) futureBankScore = 1;
-    if (futureMonths >= 12) futureBankScore = 2;
-    if (futureMonths >= 24) futureBankScore = 3;
-    if (futureMonths >= 36) futureBankScore = 4;
-    if (futureMonths >= 48) futureBankScore = 5;
-    if (futureMonths >= 60) futureBankScore = 6;
-    if (futureMonths >= 72) futureBankScore = 7;
-    if (futureMonths >= 84) futureBankScore = 8;
-    if (futureMonths >= 96) futureBankScore = 9;
-    if (futureMonths >= 108) futureBankScore = 10;
-    if (futureMonths >= 120) futureBankScore = 11;
-    if (futureMonths >= 132) futureBankScore = 12;
-    if (futureMonths >= 144) futureBankScore = 13;
-    if (futureMonths >= 156) futureBankScore = 14;
-    if (futureMonths >= 168) futureBankScore = 15;
-    futureBankScore = Math.min(futureBankScore + score.spouseBank, 17);
-    const tag = futureScore >= 60 ? '<span class="tag tag-green">인기단지 도전</span>'
-      : futureScore >= 45 ? '<span class="tag tag-blue">외곽 경쟁</span>'
-      : '<span class="tag tag-amber">특공 집중</span>';
+    const colorScore = futureScore >= 60 ? '#10b981' : futureScore >= 45 ? '#3b82f6' : '#f59e0b';
+    const advice = futureScore >= 60 ? '서울 인기단지 도전권'
+      : futureScore >= 45 ? '수도권 외곽 경쟁 가능'
+      : '특별공급 집중 전략';
     return `<tr class="${isNow ? 'highlight-row' : ''}">
-      <td><strong>${y === 0 ? '지금' : `+${y}년`}</strong><br><span style="color:#4b5563;font-size:11px">(${futureAge}세)</span></td>
-      <td style="font-family:'DM Mono',monospace; font-size:18px; color:${futureScore >= 60 ? '#10b981' : futureScore >= 45 ? '#3b82f6' : '#f59e0b'}"><strong>${futureScore}</strong><span style="color:#4b5563;font-size:12px">/84</span></td>
-      <td>${futureHousing}점</td>
-      <td>${score.dependent}점</td>
-      <td>${futureBankScore}점</td>
-      <td>${tag}</td>
+      <td><strong style="color:var(--text)">${y === 0 ? '지금' : `+${y}년 후`}</strong> <span style="color:#4b5563;font-size:11px">(${futureAge}세)</span></td>
+      <td style="font-family:'DM Mono',monospace; font-size:22px; font-weight:700; color:${colorScore}">${futureScore}<span style="color:#4b5563;font-size:12px;font-weight:400"> /84</span></td>
+      <td style="color:var(--text-muted); font-size:13px;">${advice}</td>
     </tr>`;
   });
 
   document.getElementById('futureTable').innerHTML = `
-    <thead>
-      <tr>
-        <th>시점</th><th>총점</th><th>무주택</th><th>부양가족</th><th>통장</th><th>경쟁력</th>
-      </tr>
-    </thead>
+    <thead><tr><th>시점</th><th>예상 가점</th><th>전략 방향</th></tr></thead>
     <tbody>${tableRows.join('')}</tbody>
   `;
 
